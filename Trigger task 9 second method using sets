@@ -1,0 +1,90 @@
+public class TimeTrackingHandler {
+
+    public static void checkInsertUpdate
+        (Map<String,Double> userDateHourMap,List<Time_Tracking__c> timeTrackingObjList,Boolean isInserted , Boolean isUpdated,Set<Id> ttIds){
+        
+		
+        for(AggregateResult ar : [SELECT Date__c , SUM(Hours__c) totalHours , User__c FROM Time_Tracking__c WHERE ID NOT IN : ttIds AND ID <> null GROUP BY Date__c , User__c ]){
+            
+            System.debug('aggregate query' + ar);
+            date myDate = (date) ar.get('Date__c'); 
+            
+            String key =  myDate.format() + String.valueOf((Id)ar.get('User__c'));
+
+            if(userDateHourMap.containsKey(key)){
+                System.debug('key' + key);
+                Double newHours = userDateHourMap.get(key);
+                System.debug('new hours' + newHours);
+                System.debug('total hours' + (Double) ar.get('totalHours'));
+                userDateHourMap.put(key, newHours+ (Double) ar.get('totalHours'));
+            }
+        }
+        
+        
+        for(Time_Tracking__c timeTrackobj : timeTrackingObjList){
+            
+            String key = timeTrackobj.Date__c.format() + String.valueOf(timeTrackobj.User__c);
+            System.debug('key inside second for loop' + key);
+            if(isInserted && userDateHourMap.containsKey(key) && userDateHourMap.get(key)> 24){
+                System.debug('inside if block');
+                timeTrackobj.Hours__c.addError('User exceeds daily hours');
+            }
+            
+            if(isUpdated && userDateHourMap.containsKey(key) && ttIds.contains(timeTrackobj.id) &&userDateHourMap.get(key)> 24){
+                timeTrackobj.addError('User exceeds daily hours');
+            }
+            
+        }
+            
+            
+             
+        
+    }
+
+trigger TimeTrackingTrigger on Time_Tracking__c (before insert,before update) {
+
+    if(Trigger.isBefore){
+        
+        Map<String,Double> userDateHourMap = new Map<String,Double>();
+        List<Time_Tracking__c> timeTrackingObjList = new List<Time_Tracking__c>();
+        Set<id> ttIds = new Set<Id>();
+        
+        if(Trigger.isInsert){
+            
+            for(Time_Tracking__c timeTrackingObj : Trigger.New){
+
+                if(timeTrackingObj.Hours__c!=null && timeTrackingObj.Date__c!=null && timeTrackingObj.User__c!=null){
+                    String key = timeTrackingObj.Date__c.format() + String.valueOf(timeTrackingObj.User__c);
+                    userDateHourMap.put(key,timeTrackingObj.Hours__c);
+                    timeTrackingObjList.add(timeTrackingObj);
+                    
+                }
+                
+                
+
+            }
+        }
+        
+        
+        if(Trigger.isUpdate){
+            
+            for(Time_Tracking__c timeTrackingObj : Trigger.New){
+                
+                Time_Tracking__c oldTimeTracking = Trigger.oldMap.get(timeTrackingObj.Id);
+                
+                if(timeTrackingObj.Date__c!=oldTimeTracking.Date__c || timeTrackingObj.Hours__c!=oldTimeTracking.Hours__c || timeTrackingObj.User__c!=oldTimeTracking.User__c){
+                    
+                    String key = timeTrackingObj.Date__c.format() + String.valueOf(timeTrackingObj.User__c);
+                    userDateHourMap.put(key,timeTrackingObj.Hours__c); 
+                    timeTrackingObjList.add(timeTrackingObj);
+                    ttIds.add(timeTrackingObj.Id);
+                }
+            }
+        }
+        
+        if(!userDateHourMap.isEmpty() || !timeTrackingObjList.isEmpty() || !ttIds.isEmpty()) 
+            TimeTrackingHandler.checkInsertUpdate(userDateHourMap,timeTrackingObjList,Trigger.isInsert,Trigger.isUpdate,ttIds);
+    }
+   
+}
+}
