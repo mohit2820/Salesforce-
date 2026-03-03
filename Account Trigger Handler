@@ -1,0 +1,21 @@
+public class AccountTriggerHandler {
+
+    public static void goldCheckboxUpdate(List<Account> accountList){
+        
+        Map<Id,Boolean> checkboxMap = new Map<Id,Boolean>();
+        
+        for(Opportunity opp : [SELECT AccountId , Amount FROM Opportunity WHERE AccountId IN: accountList]){
+            
+            if(opp.Amount>20){
+                 System.debug('amount > 20');
+                checkboxMap.put(opp.AccountId , true);
+            }
+        }
+        
+        for(Account acc : accountList){
+            System.debug(acc.is_gold__c);
+            acc.is_gold__c = checkboxMap.get(acc.id);
+            System.debug(acc.is_gold__c);
+        }
+    }
+}
