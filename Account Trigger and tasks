@@ -1,0 +1,139 @@
+// =============================
+// TASK 1
+// =============================
+// Field on Account: Only_Default_Contact__c (Checkbox, default = false)
+// When Account is created → create default Contact
+// If Account has more than 1 Contact → mark checkbox false
+// =============================
+
+
+// -------- Account Trigger --------
+/*
+trigger AccountTrigger on Account (after insert) {
+    
+    if(Trigger.isAfter && Trigger.isInsert){
+        AccountHandler.createDefaultContact(Trigger.new);
+    }
+}
+*/
+
+
+// -------- Contact Trigger --------
+/*
+trigger ContactTrigger on Contact 
+(after insert, after delete, after update, after undelete) {
+    
+    if(Trigger.isAfter){
+        
+        Set<Id> setOfAccountId = new Set<Id>();
+        
+        // UPDATE CASE
+        if(Trigger.isUpdate){
+            
+            for(Contact con : Trigger.new){
+                
+                if(con.AccountId != Trigger.oldMap.get(con.Id).AccountId){
+                    
+                    if(con.AccountId != null)
+                        setOfAccountId.add(con.AccountId);
+                    
+                    if(Trigger.oldMap.get(con.Id).AccountId != null)
+                        setOfAccountId.add(Trigger.oldMap.get(con.Id).AccountId);
+                }
+            }           
+        }
+        
+        // INSERT & UNDELETE CASE
+        if(Trigger.isInsert || Trigger.isUndelete){
+            
+            for(Contact con : Trigger.new){
+                
+                if(con.AccountId != null){
+                    setOfAccountId.add(con.AccountId);
+                }
+            }
+        }
+        
+        // DELETE CASE
+        if(Trigger.isDelete){
+            
+            for(Contact con : Trigger.old){
+                
+                if(con.AccountId != null){
+                    setOfAccountId.add(con.AccountId);
+                }
+            }
+        }
+        
+        if(!setOfAccountId.isEmpty()){
+            ContactHandler.updateAccountCheckbox(setOfAccountId);
+        }
+    }
+}
+*/
+
+// =============================
+// TASK 2
+// =============================
+// Field on Account: Out_of_Zip__c (Checkbox, default = false)
+// If BillingPostalCode changes → check contacts
+// If any contact has different postal code → mark TRUE
+// =============================
+
+
+// -------- Account Trigger --------
+/*
+trigger AccountTrigger on Account (before update) {
+
+    if (Trigger.isBefore && Trigger.isUpdate) {
+
+        Map<Id, Account> accountMap = new Map<Id, Account>();
+
+        // Detect change in BillingPostalCode
+        for (Account acc : Trigger.new) {
+
+            if (acc.BillingPostalCode != null &&
+                acc.BillingPostalCode != 
+                Trigger.oldMap.get(acc.Id).BillingPostalCode) {
+
+                accountMap.put(acc.Id, acc);
+            }
+        }
+
+        // Call handler if any Account had BillingPostalCode changed
+        if (!accountMap.isEmpty()) {
+            AccountZipHandler.updateOutOfZip(accountMap);
+        }
+    }
+}
+*/
+
+// =============================
+// TASK 3
+// =============================
+// Field on Account: VIP__c (Checkbox)
+//
+// Requirement:
+// If VIP__c is set to TRUE,
+// prevent the Account from being deleted.
+//
+// When a user attempts to delete such an Account,
+// display the error message:
+// "VIP Accounts cannot be deleted."
+// =============================
+
+/*
+trigger AccountTrigger on Account(before delete){
+    
+    if(Trigger.isBefore && Trigger.isDelete){
+        
+        for(Account acc : Trigger.old){
+            if(acc.VIP__c){
+                acc.addError('VIP Accounts cannot be deleted.');
+            }
+        }
+    }
+}
+
+*/
+
